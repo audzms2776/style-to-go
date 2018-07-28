@@ -49,7 +49,7 @@ class VGGNet(nn.Module):
 content_name = 'content.jpg'
 style_name = 'style.jpg'
 total_epoch = 2000
-style_weight = 100
+style_weight = 10
 sample_step = 500
 
 #########
@@ -59,12 +59,12 @@ transform = transforms.Compose([
     transforms.Normalize(mean=(0.485, 0.456, 0.406),
                          std=(0.229, 0.224, 0.225))])
 
-content = load_image(content_name, transform, shape=(100, 100))
-style = load_image(style_name, transform, shape=(100, 100))
+content = load_image(content_name, transform, shape=(200, 200))
+style = load_image(style_name, transform, shape=(200, 200))
 
 target = content.clone().requires_grad_(True)
 
-optimizer = torch.optim.Adam([target], lr=1e-3, betas=[0.5, 0.999])
+optimizer = torch.optim.Adam([target], lr=0.003, betas=[0.5, 0.999])
 vgg = VGGNet().to(device).eval()
 
 for step in range(total_epoch):
@@ -94,8 +94,9 @@ for step in range(total_epoch):
     loss.backward()
     optimizer.step()
 
-    print('Step [{}/{}], Content Loss: {:.4f}, Style Loss: {:.4f}'
-          .format(step + 1, total_epoch, content_loss.item(), style_loss.item()))
+    if (step + 1) % 100 == 0:
+        print('Step [{}/{}], Content Loss: {:.4f}, Style Loss: {:.4f}'
+              .format(step + 1, total_epoch, content_loss.item(), style_loss.item()))
 
     if (step + 1) % sample_step == 0:
         denorm = transforms.Normalize((-2.12, -2.04, -1.80), (4.37, 4.46, 4.44))
