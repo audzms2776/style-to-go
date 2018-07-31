@@ -4,8 +4,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torchvision.utils import save_image
 
-from pix2pix.data_loader import TestDataLoader
-from pix2pix.model import ConvNet
+from data_loader import TestDataLoader
+from model import ConvNet
 
 
 def to_var(x):
@@ -14,7 +14,7 @@ def to_var(x):
     return Variable(x)
 
 
-batch_size = 100
+batch_size = 128
 learning_rate = 0.001
 total_epoch = 1000
 
@@ -27,10 +27,10 @@ if torch.cuda.is_available():
 else:
     model = ConvNet()
 
-if 'model.ckpt' in os.listdir('./'):
-    model.load_state_dict(torch.load('model.ckpt'))
+# if 'model.ckpt' in os.listdir('./'):
+#     model.load_state_dict(torch.load('model.ckpt'))
 
-pixel_loss = nn.MSELoss()
+pixel_loss = nn.L1Loss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 for epoch in range(total_epoch):
@@ -48,5 +48,5 @@ for epoch in range(total_epoch):
         if idx % 10 == 0:
             print(loss)
 
-    torch.save(model.state_dict(), 'model.ckpt')
-    save_image(output.data, '{}-result.png'.format(epoch), normalize=True)
+    # torch.save(model.state_dict(), 'model.ckpt')
+    save_image(output.data, '{}-conv-edge.png'.format(epoch), normalize=True)

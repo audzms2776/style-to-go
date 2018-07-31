@@ -9,27 +9,29 @@ normalize = transforms.Normalize(
 )
 
 pre_process = transforms.Compose([
-    transforms.RandomCrop(64),
+    transforms.Resize(64),
     transforms.ToTensor(),
     normalize
 ])
 
-
+# edges2shoes
+# cityscapes
 class TestDataLoader(data.Dataset):
     def __init__(self):
-        self.train_path = '/tmp/cityscapes/train'
+        self.dataset_name = 'edges2shoes'
+        self.train_path = '/tmp/{}/train/'.format(self.dataset_name)
         self.train_names = os.listdir(self.train_path)
 
     def __getitem__(self, index):
         img_name = self.train_names[index]
 
-        origin_im = Image.open('/tmp/cityscapes/train_original/' + img_name)
-        origin_img = pre_process(origin_im)
+        origin_im = Image.open('/tmp/{}/train_input/{}'.format(self.dataset_name, img_name))
+        input_img = pre_process(origin_im)
 
-        origin_im2 = Image.open('/tmp/cityscapes/train_seg/' + img_name)
-        origin_img2 = pre_process(origin_im2)
+        origin_im2 = Image.open('/tmp/{}/train_output/{}'.format(self.dataset_name, img_name))
+        output_img = pre_process(origin_im2)
 
-        return origin_img2, origin_img
+        return input_img, output_img
 
     def __len__(self):
         return len(self.train_names)
