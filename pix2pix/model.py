@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -150,7 +151,7 @@ class ConvDisNet(nn.Module):
         super(ConvDisNet, self).__init__()
 
         self.conv = nn.Sequential(
-            nn.Conv2d(3, 64, (3, 3), (1, 1), (1, 1)),
+            nn.Conv2d(6, 64, (3, 3), (1, 1), (1, 1)),
             nn.LeakyReLU(0.2),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(64, 64, (3, 3), (2, 2), (1, 1)),
@@ -168,20 +169,26 @@ class ConvDisNet(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, x):
+    def forward(self, x, y):
+        x = torch.cat((x, y), dim=1)
         x = self.conv(x)
         x = x.view(x.size(0), -1)
         x = self.linear(x)
 
         return x      
 
-# import torch
-# from torch.autograd import Variable
+import torch
+from torch.autograd import Variable
 
 
-# def get_noise():
-#     return Variable(torch.randn(5, 3, 128, 128)).cuda()
+def get_noise():
+    return Variable(torch.randn(5, 3, 128, 128)).cuda()
 
 
 # M = ConvDisNet().cuda()
-# print(M((get_noise())).shape)
+# oo = M(get_noise(), get_noise())
+
+
+# M = ConvGenNet().cuda()
+# oo = M(get_noise())
+# print(oo.shape)

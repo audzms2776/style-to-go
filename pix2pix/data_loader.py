@@ -9,7 +9,7 @@ normalize = transforms.Normalize(
 )
 
 pre_process = transforms.Compose([
-    transforms.Resize(64),
+    transforms.Resize(128),
     transforms.ToTensor(),
     normalize
 ])
@@ -18,7 +18,7 @@ pre_process = transforms.Compose([
 # cityscapes
 class TestDataLoader(data.Dataset):
     def __init__(self):
-        self.dataset_name = 'edges2shoes'
+        self.dataset_name = 'cityscapes'
         self.train_path = '/tmp/{}/train/'.format(self.dataset_name)
         self.train_names = os.listdir(self.train_path)
 
