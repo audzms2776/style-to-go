@@ -4,142 +4,80 @@ from torchvision import datasets
 from torchvision import transforms
 from torch.autograd import Variable
 from torchvision.utils import save_image
-import matplotlib.pyplot as plt
+from tqdm import tqdm
 
-batch_size = 100
+batch_size = 64
+noise_size = 100
 total_epoch = 100
+img_size = 28
+output_channel = 1
 
 
 class Generator(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.conv0 = nn.Sequential(
-            nn.Conv2d(1, 64, (5, 5), (1, 1), (2, 2)),
-            nn.BatchNorm2d(64),
-            nn.PReLU()
+        self.init_size = (img_size // 4)
+
+        self.l1 = nn.Sequential(nn.Linear(noise_size, 128 * self.init_size ** 2))
+        self.conv_block = nn.Sequential(
+            nn.BatchNorm2d(128),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.BatchNorm2d(128, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, output_channel, 3, stride=1, padding=1),
+            nn.Tanh()
         )
 
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(64, 64, (5, 5), (1, 1), (2, 2)),
-            nn.BatchNorm2d(64),
-            nn.PReLU(),
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU()
-        )
+    def forward(self, z):
+        out = self.l1(z)
+        out = out.view(out.shape[0], 128, self.init_size, self.init_size)
+        img = self.conv_block(out)
 
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(64, 64, (5, 5), (1, 1), (2, 2)),
-            nn.BatchNorm2d(64),
-            nn.PReLU(),
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU()
-        )
+        return img
 
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU(),
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU()
-        )
 
-        self.conv4 = nn.Sequential(
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU(),
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU()
-        )
+def disc_block(in_filters, out_filters, bn=True):
+    block = [nn.Conv2d(in_filters, out_filters, 3, 2, 1),
+             nn.LeakyReLU(0.2, inplace=True),
+             nn.Dropout2d(0.25)]
 
-        self.conv5 = nn.Sequential(
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU(),
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.PReLU()
-        )
+    if bn:
+        block.append(nn.BatchNorm2d(out_filters, 0.8))
 
-        self.f_conv = nn.Sequential(
-            nn.Conv2d(64, 64, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(64))
-
-        self.pixel_shuffle = nn.Sequential(
-            nn.Conv2d(64, 4 ** 2 * 1, (3, 3), (1, 1), (1, 1)),
-            nn.PixelShuffle(4),
-            nn.PReLU(),
-            nn.Conv2d(1, 1, (3, 3), (1, 1), (1, 1)))
-
-    def forward(self, x):
-        conv0_result = self.conv0(x)  # torch.Size([100, 16, 13, 13])
-
-        out = self.conv1(conv0_result) + conv0_result
-        out = self.conv2(out) + out
-        out = self.conv3(out) + out
-        out = self.conv4(out) + out
-        out = self.conv5(out) + out
-
-        conv_result = self.f_conv(out) + conv0_result
-
-        img_result = self.pixel_shuffle(conv_result)
-
-        return img_result
+    return block
 
 
 class Discriminator(nn.Module):
+
     def __init__(self):
         super().__init__()
 
-        self.conv = nn.Sequential(
-            nn.Conv2d(1, 64, (3, 3), (1, 1), (1, 1)),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 64, (3, 3), (2, 2), (1, 1)),
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2),
-
-            nn.Conv2d(64, 128, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
-
-            nn.Conv2d(128, 128, (3, 3), (2, 2), (1, 1)),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
-
-            nn.Conv2d(128, 256, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
-
-            nn.Conv2d(256, 256, (3, 3), (2, 2), (1, 1)),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
-
-            nn.Conv2d(256, 512, (3, 3), (1, 1), (1, 1)),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
-
-            nn.Conv2d(512, 512, (3, 3), (2, 2), (1, 1)),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
+        self.model = nn.Sequential(
+            *disc_block(output_channel, 16, bn=False),
+            *disc_block(16, 32),
+            *disc_block(32, 64),
+            *disc_block(64, 128),
         )
 
-        self.linear = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.LeakyReLU(0.2),
-            nn.Linear(1024, 1),
-            nn.Sigmoid()
-        )
+    def forward(self, img):
+        out = self.model(img)
+        out = out.view(out.shape[0], -1)
 
-    def forward(self, x):
-        x = self.conv(x)
-        x = x.view(x.size(0), -1)
-        x = self.linear(x)
+        adv_layer = nn.Sequential(nn.Linear(out.shape[1], 1),
+                                  nn.Sigmoid())
 
-        return x
+        if torch.cuda.is_available():
+            adv_layer.cuda()
+
+        validity = adv_layer(out)
+
+        return validity
 
 
 def to_var(x):
@@ -148,17 +86,19 @@ def to_var(x):
     return Variable(x)
 
 
-def get_noise():
-    return torch.randn(batch_size, 1, 7, 7)
+def get_noise(x_size):
+    return torch.randn(x_size, noise_size)
 
 
 # Image processing
 transform = transforms.Compose([
+    transforms.Grayscale(),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])])
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
 # MNIST dataset
-mnist = datasets.MNIST(root='/tmp/data/',
+mnist = datasets.MNIST(root='/tmp/',
                        train=True,
                        transform=transform,
                        download=True)
@@ -178,39 +118,49 @@ bce_loss = nn.BCELoss()
 d_optimizer = torch.optim.Adam(D.parameters(), lr=0.0002)
 g_optimizer = torch.optim.Adam(G.parameters(), lr=0.0002)
 
-step = 0
-step_arr = []
-d_loss_arr = []
-g_loss_arr = []
+if torch.cuda.is_available():
+    D.cuda()
+    G.cuda()
+    bce_loss.cuda()
 
 for epoch in range(total_epoch):
+    pbar = tqdm(data_loader)
+    pbar.set_description('{}'.format(epoch))
 
-    for x, _ in data_loader:
+    for x, _ in pbar:
+        # input data
+        curr_batch = x.size(0)
         x_data = to_var(x)
-        real_label = to_var(torch.ones(batch_size))
-        fake_label = to_var(torch.zeros(batch_size))
+        sample_noise = to_var(get_noise(curr_batch))
 
-        d_loss = bce_loss(D(x_data), real_label) \
-                 + bce_loss(D(G(to_var(get_noise()))), fake_label)
-        D.zero_grad()
-        d_loss.backward()
+        # label
+        one_label = Variable(torch.ones(curr_batch, 1), requires_grad=False).cuda()
+        zero_label = Variable(torch.zeros(curr_batch, 1), requires_grad=False).cuda()
+
+        fake_img = G(sample_noise)
+
+        # discriminator
+
+        real_loss = bce_loss(D(x_data), one_label)
+        fake_loss = bce_loss(D(fake_img), zero_label)
+
+        d_loss = (real_loss + fake_loss) / 2
+
+        d_optimizer.zero_grad()
+        g_optimizer.zero_grad()
+
+        d_loss.backward(retain_graph=True)
         d_optimizer.step()
 
-        g_loss = bce_loss(D(G(to_var(get_noise()))), real_label)
-        D.zero_grad()
-        G.zero_grad()
+        # generator
+
+        g_loss = bce_loss(D(fake_img), one_label)
+
+        g_optimizer.zero_grad()
+        d_optimizer.zero_grad()
+
         g_loss.backward()
         g_optimizer.step()
 
-        step += 1
-
-        step_arr.append(step)
-        d_loss_arr.append(d_loss)
-        g_loss_arr.append(g_loss)
-
-    plt.plot(step_arr, d_loss_arr, linestyle='solid')
-    plt.plot(step_arr, g_loss_arr, linestyle='solid')
-    plt.show()
-
-    fake_images = G(to_var(get_noise()))
+    fake_images = fake_img.view(fake_img.size(0), 1, 28, 28)
     save_image(fake_images, '{}.png'.format(epoch), normalize=True)
