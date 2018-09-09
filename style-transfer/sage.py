@@ -13,6 +13,7 @@ import torchvision
 from PIL import Image
 from torchvision import models, transforms
 
+# sagemaker logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -34,7 +35,7 @@ class VGGNet(nn.Module):
                 features.append(x)
         return features
 
-
+# code start!
 def train(args):
     use_cuda = args.num_gpus > 0
     logger.debug("Number of gpus available - {}".format(args.num_gpus))
@@ -109,12 +110,16 @@ def train(args):
             denorm = transforms.Normalize((-2.12, -2.04, -1.80), (4.37, 4.46, 4.44))
             img = target.clone().squeeze()
             img = denorm(img).clamp_(0, 1)
+            
+            # sagemaker output file path ==> s3 path model_dir + file
             img_name = os.path.join(args.model_dir, 'output-{}.png'.format(step))
             torchvision.utils.save_image(img, img_name)
 
     save_model(model, args.model_dir)
 
 
+# no edit!
+# only model 
 def model_fn(model_dir):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = torch.nn.DataParallel(VGGNet())
@@ -123,6 +128,8 @@ def model_fn(model_dir):
     return model.to(device)
 
 
+# no edit! 
+# save path: model_dir s3 save path
 def save_model(model, model_dir):
     logger.info("Saving the model.")
     path = os.path.join(model_dir, 'model.pth')
@@ -130,6 +137,7 @@ def save_model(model, model_dir):
     torch.save(model.cpu().state_dict(), path)
 
 
+# arg config
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
