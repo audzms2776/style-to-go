@@ -94,24 +94,22 @@ for epoch in range(total_epoch):
         fake_img = G(sample_noise)
 
         # discriminator
+        d_optimizer.zero_grad()
+        # g_optimizer.zero_grad()
 
         real_loss = bce_loss(D(x_data), one_label)
         fake_loss = bce_loss(D(fake_img), zero_label)
 
         d_loss = (real_loss + fake_loss) / 2
 
-        d_optimizer.zero_grad()
-        g_optimizer.zero_grad()
-
         d_loss.backward(retain_graph=True)
         d_optimizer.step()
 
         # generator
+        g_optimizer.zero_grad()
+        # d_optimizer.zero_grad()
 
         g_loss = bce_loss(D(fake_img), one_label)
-
-        g_optimizer.zero_grad()
-        d_optimizer.zero_grad()
 
         g_loss.backward()
         g_optimizer.step()
